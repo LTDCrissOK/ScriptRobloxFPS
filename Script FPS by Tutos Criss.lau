@@ -1,0 +1,898 @@
+-- =========================================================
+-- TC FLOAT UI - SCRIPT OPTIMIZACION V1
+-- Interfaz oscura estilo TC + burbuja arrastrable
+-- La burbuja solo abre el menu con un toque, no al arrastrarla.
+-- =========================================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Evitar duplicar la interfaz.
+local oldGui = playerGui:FindFirstChild("TC_UI")
+if oldGui then
+    oldGui:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "TC_UI"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+-- Prioridad alta para que la interfaz quede por delante de las interfaces normales del juego.
+gui.DisplayOrder = 999999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+gui.Parent = playerGui
+
+-- =========================================================
+-- BURBUJA FLOTANTE TC
+-- =========================================================
+
+local bubble = Instance.new("TextButton")
+bubble.Name = "TCBubble"
+bubble.Size = UDim2.new(0, 60, 0, 60)
+bubble.Position = UDim2.new(0.1, 0, 0.5, 0)
+bubble.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+bubble.Text = "TC"
+bubble.TextColor3 = Color3.fromRGB(255, 255, 255)
+bubble.Font = Enum.Font.GothamBlack
+bubble.TextSize = 20
+bubble.AutoButtonColor = false
+bubble.Active = true
+bubble.ZIndex = 10
+bubble.Parent = gui
+
+local bubbleCorner = Instance.new("UICorner")
+bubbleCorner.CornerRadius = UDim.new(1, 0)
+bubbleCorner.Parent = bubble
+
+local bubbleStroke = Instance.new("UIStroke")
+bubbleStroke.Color = Color3.fromRGB(70, 70, 70)
+bubbleStroke.Thickness = 1.5
+bubbleStroke.Parent = bubble
+
+-- =========================================================
+-- MENU: DISEÑO BASADO EN LA SEGUNDA IMAGEN
+-- =========================================================
+
+local menu = Instance.new("Frame")
+menu.Name = "MainMenu"
+menu.Size = UDim2.new(0, 460, 0, 600)
+menu.AnchorPoint = Vector2.new(0.5, 0.5)
+menu.Position = UDim2.new(0.5, 0, 0.5, 0)
+menu.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+menu.BorderSizePixel = 0
+menu.Visible = false
+menu.ClipsDescendants = true
+menu.Parent = gui
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 24)
+menuCorner.Parent = menu
+
+local menuStroke = Instance.new("UIStroke")
+menuStroke.Color = Color3.fromRGB(25, 25, 25)
+menuStroke.Thickness = 1
+menuStroke.Parent = menu
+
+local menuScale = Instance.new("UIScale")
+menuScale.Parent = menu
+
+local function updateMenuScale()
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+    local viewport = camera.ViewportSize
+    menuScale.Scale = math.min(1, math.max(0.55, (viewport.X - 24) / 460), math.max(0.55, (viewport.Y - 24) / 600))
+end
+
+updateMenuScale()
+if Workspace.CurrentCamera then
+    Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateMenuScale)
+end
+
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, -24, 0, 72)
+header.Position = UDim2.new(0, 12, 0, 8)
+header.BackgroundTransparency = 1
+header.Parent = menu
+
+local tcLabel = Instance.new("TextLabel")
+tcLabel.Size = UDim2.new(0, 52, 0, 44)
+tcLabel.Position = UDim2.new(0, 4, 0, 8)
+tcLabel.BackgroundTransparency = 1
+tcLabel.Text = "TC"
+tcLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+tcLabel.Font = Enum.Font.GothamBlack
+tcLabel.TextSize = 30
+tcLabel.TextXAlignment = Enum.TextXAlignment.Left
+tcLabel.Parent = header
+
+local titlePill = Instance.new("Frame")
+titlePill.Size = UDim2.new(0.62, 0, 0, 48)
+titlePill.AnchorPoint = Vector2.new(0.5, 0)
+titlePill.Position = UDim2.new(0.56, 0, 0, 10)
+titlePill.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+titlePill.BorderSizePixel = 0
+titlePill.Parent = header
+
+local pillCorner = Instance.new("UICorner")
+pillCorner.CornerRadius = UDim.new(1, 0)
+pillCorner.Parent = titlePill
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -12, 1, 0)
+title.Position = UDim2.new(0, 6, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Script Optimización V1"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+title.Parent = titlePill
+
+local close = Instance.new("TextButton")
+close.Size = UDim2.new(0, 52, 0, 52)
+close.Position = UDim2.new(1, -60, 0, 4)
+close.BackgroundColor3 = Color3.fromRGB(145, 0, 0)
+close.Text = "—"
+close.TextColor3 = Color3.fromRGB(255, 255, 255)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 28
+close.Parent = header
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 15)
+closeCorner.Parent = close
+
+local container = Instance.new("Frame")
+container.Size = UDim2.new(1, -42, 1, -150)
+container.Position = UDim2.new(0, 21, 0, 105)
+container.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+container.BorderSizePixel = 0
+container.Parent = menu
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "OptionsScroll"
+scroll.Size = UDim2.new(1, -22, 1, -4)
+scroll.Position = UDim2.new(0, 0, 0, 2)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 0
+scroll.ScrollBarImageTransparency = 1
+scroll.VerticalScrollBarInset = Enum.ScrollBarInset.None
+scroll.HorizontalScrollBarInset = Enum.ScrollBarInset.None
+scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.Parent = container
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 24)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = scroll
+
+local scrollPadding = Instance.new("UIPadding")
+scrollPadding.PaddingTop = UDim.new(0, 10)
+scrollPadding.PaddingBottom = UDim.new(0, 10)
+scrollPadding.PaddingLeft = UDim.new(0, 2)
+scrollPadding.PaddingRight = UDim.new(0, 8)
+scrollPadding.Parent = scroll
+
+-- Barra de desplazamiento personalizada.
+local scrollBarBG = Instance.new("Frame")
+scrollBarBG.Size = UDim2.new(0, 5, 1, -8)
+scrollBarBG.Position = UDim2.new(1, -7, 0, 4)
+scrollBarBG.BackgroundTransparency = 1 -- Oculta la pista gris; queda visible solo la barra roja.
+scrollBarBG.BorderSizePixel = 0
+scrollBarBG.Parent = container
+
+local scrollBarBGCorner = Instance.new("UICorner")
+scrollBarBGCorner.CornerRadius = UDim.new(1, 0)
+scrollBarBGCorner.Parent = scrollBarBG
+
+local scrollBar = Instance.new("Frame")
+scrollBar.Size = UDim2.new(1, 0, 0.25, 0)
+scrollBar.BackgroundColor3 = Color3.fromRGB(190, 0, 0)
+scrollBar.BorderSizePixel = 0
+scrollBar.Parent = scrollBarBG
+
+local scrollBarCorner = Instance.new("UICorner")
+scrollBarCorner.CornerRadius = UDim.new(1, 0)
+scrollBarCorner.Parent = scrollBar
+
+local function updateScrollBar()
+    local total = scroll.AbsoluteCanvasSize.Y
+    local visible = scroll.AbsoluteSize.Y
+    if total <= 0 or total <= visible then
+        scrollBar.Size = UDim2.new(1, 0, 1, 0)
+        scrollBar.Position = UDim2.new(0, 0, 0, 0)
+    else
+        local ratio = math.clamp(visible / total, 0.08, 1)
+        local barHeight = visible * ratio
+        local maxBarTravel = math.max(0, scrollBarBG.AbsoluteSize.Y - barHeight)
+        local scrollRange = math.max(1, total - visible)
+        local y = (scroll.CanvasPosition.Y / scrollRange) * maxBarTravel
+        scrollBar.Size = UDim2.new(1, 0, 0, barHeight)
+        scrollBar.Position = UDim2.new(0, 0, 0, y)
+    end
+end
+
+scroll:GetPropertyChangedSignal("CanvasPosition"):Connect(updateScrollBar)
+scroll:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(updateScrollBar)
+scroll:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateScrollBar)
+
+local footer = Instance.new("TextLabel")
+footer.Size = UDim2.new(1, -20, 0, 36)
+footer.AnchorPoint = Vector2.new(0.5, 1)
+footer.Position = UDim2.new(0.5, 0, 1, -12)
+footer.BackgroundTransparency = 1
+footer.Text = "Script by Tutos Criss"
+footer.TextColor3 = Color3.fromRGB(255, 255, 255)
+footer.Font = Enum.Font.GothamBold
+footer.TextSize = 18
+footer.Parent = menu
+
+local function openMenu()
+    if menu.Visible then return end
+    menu.Visible = true
+    bubble.Visible = false
+    menu.Size = UDim2.new(0, 0, 0, 0)
+    TweenService:Create(menu, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 460, 0, 600)
+    }):Play()
+end
+
+local function closeMenu()
+    local tween = TweenService:Create(menu, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0)
+    })
+    tween:Play()
+    tween.Completed:Wait()
+    menu.Visible = false
+    bubble.Visible = true
+    menu.Size = UDim2.new(0, 460, 0, 600)
+end
+
+close.Activated:Connect(function()
+    task.spawn(closeMenu)
+end)
+
+-- Arrastrar sin abrir el menú al soltar.
+local dragging = false
+local moved = false
+local dragStart = nil
+local startPos = nil
+local activeInputType = nil
+local DRAG_THRESHOLD = 10
+
+bubble.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        moved = false
+        dragStart = input.Position
+        startPos = bubble.Position
+        activeInputType = "Touch"
+    elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        moved = false
+        dragStart = input.Position
+        startPos = bubble.Position
+        activeInputType = "Mouse"
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not dragging or not dragStart or not startPos then return end
+
+    local validMovement =
+        (activeInputType == "Touch" and input.UserInputType == Enum.UserInputType.Touch)
+        or (activeInputType == "Mouse" and input.UserInputType == Enum.UserInputType.MouseMovement)
+
+    if not validMovement then return end
+
+    local delta = input.Position - dragStart
+    if delta.Magnitude > DRAG_THRESHOLD then
+        moved = true
+    end
+
+    if moved then
+        local camera = Workspace.CurrentCamera
+        local viewport = camera and camera.ViewportSize or Vector2.new(800, 600)
+        local size = bubble.AbsoluteSize
+        local newX = math.clamp(startPos.X.Offset + delta.X, 0, math.max(0, viewport.X - size.X))
+        local newY = math.clamp(startPos.Y.Offset + delta.Y, 0, math.max(0, viewport.Y - size.Y))
+        bubble.Position = UDim2.new(0, newX, 0, newY)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    local matchingEnd =
+        (activeInputType == "Touch" and input.UserInputType == Enum.UserInputType.Touch)
+        or (activeInputType == "Mouse" and input.UserInputType == Enum.UserInputType.MouseButton1)
+
+    if not dragging or not matchingEnd then return end
+
+    local wasDragged = moved
+    dragging = false
+    moved = false
+    dragStart = nil
+    startPos = nil
+    activeInputType = nil
+
+    if not wasDragged then
+        openMenu()
+    end
+end)
+
+-- =========================================================
+-- VARIABLES DE FUNCIONES
+-- =========================================================
+
+local optimizacionActivada = false
+local uiEscalaActivada = false
+local ocultarPrendasActivado = false
+local valoresGuardados = false
+local conexionOptimizacion = nil
+local uiScales = {}
+local factorEscalaUI = 1.2
+local estadosOriginalesPrendas = {}
+local limpiezaMemoriaActiva = false
+local conexionesMemoria = nil
+local aiConexion = nil
+local hiddenParts = {}
+local memConexion = nil
+local sleepConexion = nil
+local playerAddedConnection = nil
+local guiChildConnection = nil
+local characterConnections = {}
+
+local valoresOriginales = {
+    GlobalShadows = nil,
+    Brightness = nil,
+    OutdoorAmbient = nil,
+    Ambient = nil,
+    Technology = nil,
+    QualityLevel = nil,
+    FogEnd = nil,
+    ClockTime = nil,
+    EfectosPost = {},
+    Materiales = {}
+}
+
+-- =========================================================
+-- OPTIMIZACION GRAFICA
+-- =========================================================
+
+local function guardarValoresOriginales()
+    if valoresGuardados then return end
+    valoresGuardados = true
+
+    valoresOriginales.GlobalShadows = Lighting.GlobalShadows
+    valoresOriginales.Brightness = Lighting.Brightness
+    valoresOriginales.OutdoorAmbient = Lighting.OutdoorAmbient
+    valoresOriginales.Ambient = Lighting.Ambient
+    valoresOriginales.Technology = Lighting.Technology
+    valoresOriginales.FogEnd = Lighting.FogEnd
+    valoresOriginales.ClockTime = Lighting.ClockTime
+
+    pcall(function()
+        valoresOriginales.QualityLevel = settings().Rendering.QualityLevel
+    end)
+
+    for _, obj in ipairs(Lighting:GetDescendants()) do
+        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("DepthOfFieldEffect") or obj:IsA("SunRaysEffect") then
+            valoresOriginales.EfectosPost[obj] = obj.Enabled
+        end
+    end
+end
+
+local function revertirOptimizacion()
+    if valoresOriginales.GlobalShadows ~= nil then Lighting.GlobalShadows = valoresOriginales.GlobalShadows end
+    if valoresOriginales.Brightness ~= nil then Lighting.Brightness = valoresOriginales.Brightness end
+    if valoresOriginales.OutdoorAmbient ~= nil then Lighting.OutdoorAmbient = valoresOriginales.OutdoorAmbient end
+    if valoresOriginales.Ambient ~= nil then Lighting.Ambient = valoresOriginales.Ambient end
+    if valoresOriginales.Technology ~= nil then Lighting.Technology = valoresOriginales.Technology end
+    if valoresOriginales.FogEnd ~= nil then Lighting.FogEnd = valoresOriginales.FogEnd end
+    if valoresOriginales.ClockTime ~= nil then Lighting.ClockTime = valoresOriginales.ClockTime end
+
+    pcall(function()
+        if valoresOriginales.QualityLevel then
+            settings().Rendering.QualityLevel = valoresOriginales.QualityLevel
+        end
+    end)
+
+    for obj, state in pairs(valoresOriginales.EfectosPost) do
+        if obj and obj.Parent then obj.Enabled = state end
+    end
+
+    for obj, props in pairs(valoresOriginales.Materiales) do
+        if obj and obj.Parent then
+            obj.Material = props.Material
+            obj.Reflectance = props.Reflectance
+            obj.CastShadow = props.CastShadow
+        end
+    end
+
+    if conexionOptimizacion then
+        conexionOptimizacion:Disconnect()
+        conexionOptimizacion = nil
+    end
+end
+
+local function aplicarOptimizacion()
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 100000
+    Lighting.ClockTime = 13
+    Lighting.Ambient = Color3.fromRGB(70, 70, 70)
+    Lighting.OutdoorAmbient = Color3.fromRGB(70, 70, 70)
+
+    pcall(function()
+        Lighting.Technology = Enum.Technology.Compatibility
+    end)
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end)
+
+    for _, obj in ipairs(Lighting:GetDescendants()) do
+        if obj:IsA("BloomEffect") or obj:IsA("BlurEffect") or obj:IsA("ColorCorrectionEffect")
+            or obj:IsA("DepthOfFieldEffect") or obj:IsA("SunRaysEffect") then
+            obj.Enabled = false
+        end
+    end
+
+    local function optimizeObject(obj)
+        if not obj:IsA("BasePart") then return end
+        if not valoresOriginales.Materiales[obj] then
+            valoresOriginales.Materiales[obj] = {
+                Material = obj.Material,
+                Reflectance = obj.Reflectance,
+                CastShadow = obj.CastShadow
+            }
+        end
+        obj.Material = Enum.Material.Plastic
+        obj.Reflectance = 0
+        obj.CastShadow = false
+    end
+
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        optimizeObject(obj)
+    end
+
+    if conexionOptimizacion then conexionOptimizacion:Disconnect() end
+    conexionOptimizacion = Workspace.DescendantAdded:Connect(optimizeObject)
+end
+
+-- =========================================================
+-- PANTALLA: ESCALA DE INTERFAZ
+-- =========================================================
+
+local function aplicarEscalaUI()
+    for _, guiObj in ipairs(playerGui:GetChildren()) do
+        if guiObj:IsA("ScreenGui") and guiObj.Name ~= "TC_UI" then
+            local uiScale = guiObj:FindFirstChild("TC_UIScale")
+            if not uiScale then
+                uiScale = Instance.new("UIScale")
+                uiScale.Name = "TC_UIScale"
+                uiScale.Parent = guiObj
+                uiScales[guiObj] = uiScale
+            end
+            uiScale.Scale = factorEscalaUI
+            guiObj.IgnoreGuiInset = true
+        end
+    end
+end
+
+local function revertirEscalaUI()
+    for _, guiObj in ipairs(playerGui:GetChildren()) do
+        if guiObj:IsA("ScreenGui") then
+            local uiScale = guiObj:FindFirstChild("TC_UIScale")
+            if uiScale then
+                uiScale.Scale = 1
+            end
+        end
+    end
+end
+
+local function conectarNuevasGUIs()
+    if guiChildConnection then guiChildConnection:Disconnect() end
+    guiChildConnection = playerGui.ChildAdded:Connect(function(guiObj)
+        if guiObj:IsA("ScreenGui") and uiEscalaActivada and guiObj.Name ~= "TC_UI" then
+            task.wait(0.1)
+            if not guiObj.Parent then return end
+            local uiScale = guiObj:FindFirstChild("TC_UIScale")
+            if not uiScale then
+                uiScale = Instance.new("UIScale")
+                uiScale.Name = "TC_UIScale"
+                uiScale.Parent = guiObj
+            end
+            uiScale.Scale = factorEscalaUI
+            guiObj.IgnoreGuiInset = true
+        end
+    end)
+end
+
+-- =========================================================
+-- PRENDAS DE JUGADORES QUE NO SON AMIGOS
+-- =========================================================
+
+local function esAmigo(jugador)
+    if jugador == player then return true end
+    local isFriend = false
+    pcall(function()
+        isFriend = player:IsFriendsWith(jugador.UserId)
+    end)
+    return isFriend
+end
+
+local function ocultarPrendasPersonaje(character)
+    if not character or not character:IsA("Model") then return end
+
+    for _, obj in ipairs(character:GetChildren()) do
+        if obj:IsA("Accessory") or obj:IsA("Hat") or obj:IsA("Shirt")
+            or obj:IsA("Pants") or obj:IsA("ShirtGraphic") then
+            if estadosOriginalesPrendas[obj] == nil then
+                estadosOriginalesPrendas[obj] = { Parent = obj.Parent }
+            end
+            obj.Parent = nil
+        end
+    end
+end
+
+local function restaurarPrendas()
+    for obj, data in pairs(estadosOriginalesPrendas) do
+        if obj and not obj.Parent then
+            pcall(function()
+                if data.Parent then
+                    obj.Parent = data.Parent
+                end
+            end)
+        end
+    end
+    estadosOriginalesPrendas = {}
+end
+
+local function ocultarPrendas()
+    for _, jugador in ipairs(Players:GetPlayers()) do
+        if jugador ~= player and not esAmigo(jugador) and jugador.Character then
+            ocultarPrendasPersonaje(jugador.Character)
+        end
+    end
+end
+
+local function conectarEventosPrendas()
+    for _, connection in ipairs(characterConnections) do
+        connection:Disconnect()
+    end
+    characterConnections = {}
+
+    local function onPlayerAdded(jugador)
+        if jugador == player then return end
+        table.insert(characterConnections, jugador.CharacterAdded:Connect(function(character)
+            task.wait(1)
+            if ocultarPrendasActivado and not esAmigo(jugador) then
+                ocultarPrendasPersonaje(character)
+            end
+        end))
+    end
+
+    for _, jugador in ipairs(Players:GetPlayers()) do
+        onPlayerAdded(jugador)
+    end
+
+    if playerAddedConnection then playerAddedConnection:Disconnect() end
+    playerAddedConnection = Players.PlayerAdded:Connect(onPlayerAdded)
+end
+
+-- =========================================================
+-- LIMPIEZA DE MEMORIA
+-- =========================================================
+
+local function iniciarLimpiezaMemoria()
+    if conexionesMemoria then return end
+    conexionesMemoria = task.spawn(function()
+        while limpiezaMemoriaActiva do
+            task.wait(10)
+            pcall(function()
+                collectgarbage("collect")
+            end)
+        end
+        conexionesMemoria = nil
+    end)
+end
+
+local function detenerLimpiezaMemoria()
+    limpiezaMemoriaActiva = false
+end
+
+-- =========================================================
+-- FUNCIONES EXTRA
+-- =========================================================
+
+local function activarAI()
+    if aiConexion then aiConexion:Disconnect() end
+    aiConexion = RunService.RenderStepped:Connect(function()
+        pcall(function()
+            local fpsFisico = Workspace:GetRealPhysicsFPS()
+            if fpsFisico < 25 then
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            elseif fpsFisico > 50 then
+                settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            end
+        end)
+    end)
+end
+
+local function desactivarAI()
+    if aiConexion then
+        aiConexion:Disconnect()
+        aiConexion = nil
+    end
+end
+
+local function activarStaticWorld()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            pcall(function()
+                obj.AssemblyLinearVelocity = Vector3.zero
+                obj.AssemblyAngularVelocity = Vector3.zero
+            end)
+        end
+    end
+end
+
+local function desactivarStaticWorld()
+    -- No se guardan velocidades originales en esta función.
+end
+
+local function activarPlayerOnly()
+    hiddenParts = {}
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local parent = obj.Parent
+            if parent and not parent:FindFirstChildOfClass("Humanoid") then
+                hiddenParts[obj] = obj.Transparency
+                obj.Transparency = 1
+            end
+        end
+    end
+end
+
+local function desactivarPlayerOnly()
+    for obj, transparency in pairs(hiddenParts) do
+        if obj and obj.Parent then
+            obj.Transparency = transparency
+        end
+    end
+    hiddenParts = {}
+end
+
+local function activarMemoryGuard()
+    if memConexion then memConexion:Disconnect() end
+    memConexion = RunService.Stepped:Connect(function()
+        pcall(function()
+            if collectgarbage("count") > 300000 then
+                collectgarbage("collect")
+            end
+        end)
+    end)
+end
+
+local function desactivarMemoryGuard()
+    if memConexion then
+        memConexion:Disconnect()
+        memConexion = nil
+    end
+end
+
+local function activarNetStabilizer()
+    pcall(function()
+        settings().Network.IncomingReplicationLag = 0.05
+    end)
+end
+
+local function desactivarNetStabilizer()
+    pcall(function()
+        settings().Network.IncomingReplicationLag = 0.1
+    end)
+end
+
+local function activarDynamicSleep()
+    if sleepConexion then sleepConexion:Disconnect() end
+    sleepConexion = RunService.Heartbeat:Connect(function()
+        -- Se conserva la opción original, sin bloquear el hilo de renderizado.
+    end)
+end
+
+local function desactivarDynamicSleep()
+    if sleepConexion then
+        sleepConexion:Disconnect()
+        sleepConexion = nil
+    end
+end
+
+-- =========================================================
+-- CREAR SWITCHES: ESTILO ROJO Y GRANDE
+-- =========================================================
+
+local optionCount = 0
+
+local function createToggle(name, callback)
+    optionCount += 1
+
+    local holder = Instance.new("Frame")
+    holder.Name = "Option_" .. name:gsub("%W", "")
+    holder.Size = UDim2.new(1, -8, 0, 64)
+    holder.BackgroundTransparency = 1
+    holder.LayoutOrder = optionCount
+    holder.Parent = scroll
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.62, -8, 1, 0)
+    label.Position = UDim2.new(0, 4, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 20
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.TextWrapped = true
+    label.Parent = holder
+
+    local toggle = Instance.new("TextButton")
+    toggle.Size = UDim2.new(0, 112, 0, 48)
+    toggle.AnchorPoint = Vector2.new(1, 0.5)
+    toggle.Position = UDim2.new(1, -8, 0.5, 0)
+    toggle.BackgroundColor3 = Color3.fromRGB(135, 0, 0)
+    toggle.Text = "OFF"
+    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggle.Font = Enum.Font.GothamBold
+    toggle.TextSize = 20
+    toggle.AutoButtonColor = true
+    toggle.Parent = holder
+
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(1, 0)
+    toggleCorner.Parent = toggle
+
+    local state = false
+    toggle.Text = "OFF"
+    toggle.BackgroundColor3 = Color3.fromRGB(135, 0, 0)
+
+    toggle.Activated:Connect(function()
+        state = not state
+
+        if state then
+            toggle.Text = "ON"
+            toggle.BackgroundColor3 = Color3.fromRGB(0, 145, 0)
+        else
+            toggle.Text = "OFF"
+            toggle.BackgroundColor3 = Color3.fromRGB(135, 0, 0)
+        end
+
+        local ok, err = pcall(callback, state)
+        if not ok then
+            warn("[TC] Error en opcion '" .. name .. "': " .. tostring(err))
+        end
+    end)
+end
+
+-- =========================================================
+-- OPCIONES
+-- Se quito completamente la opcion y el contador FPS.
+-- Las opciones extra siguen disponibles bajando el scroll.
+-- =========================================================
+
+createToggle("Optimización", function(state)
+    optimizacionActivada = state
+    if state then
+        guardarValoresOriginales()
+        aplicarOptimizacion()
+        print("[TC] Optimizacion activada")
+    else
+        revertirOptimizacion()
+        print("[TC] Optimizacion desactivada")
+    end
+end)
+
+createToggle("Pantalla", function(state)
+    uiEscalaActivada = state
+    if state then
+        aplicarEscalaUI()
+        conectarNuevasGUIs()
+        print("[TC] Escala de interfaz activada")
+    else
+        revertirEscalaUI()
+        if guiChildConnection then
+            guiChildConnection:Disconnect()
+            guiChildConnection = nil
+        end
+        print("[TC] Escala de interfaz desactivada")
+    end
+end)
+
+createToggle("Prendas", function(state)
+    ocultarPrendasActivado = state
+    if state then
+        ocultarPrendas()
+        conectarEventosPrendas()
+        print("[TC] Ocultar prendas activado")
+    else
+        restaurarPrendas()
+        if playerAddedConnection then
+            playerAddedConnection:Disconnect()
+            playerAddedConnection = nil
+        end
+        for _, connection in ipairs(characterConnections) do
+            connection:Disconnect()
+        end
+        characterConnections = {}
+        print("[TC] Ocultar prendas desactivado")
+    end
+end)
+
+createToggle("Memoria", function(state)
+    limpiezaMemoriaActiva = state
+    if state then
+        iniciarLimpiezaMemoria()
+        print("[TC] Limpieza de memoria activada")
+    else
+        detenerLimpiezaMemoria()
+        print("[TC] Limpieza de memoria desactivada")
+    end
+end)
+
+createToggle("AI Optimizer", function(state)
+    if state then
+        activarAI()
+    else
+        desactivarAI()
+    end
+end)
+
+createToggle("Static World", function(state)
+    if state then
+        activarStaticWorld()
+    else
+        desactivarStaticWorld()
+    end
+end)
+
+createToggle("Player Only", function(state)
+    if state then
+        activarPlayerOnly()
+    else
+        desactivarPlayerOnly()
+    end
+end)
+
+createToggle("Memory Guard", function(state)
+    if state then
+        activarMemoryGuard()
+    else
+        desactivarMemoryGuard()
+    end
+end)
+
+createToggle("Net Stabilizer", function(state)
+    if state then
+        activarNetStabilizer()
+    else
+        desactivarNetStabilizer()
+    end
+end)
+
+createToggle("Dynamic Sleep", function(state)
+    if state then
+        activarDynamicSleep()
+    else
+        desactivarDynamicSleep()
+    end
+end)
+
+task.defer(updateScrollBar)
+print("[TC] Interfaz cargada - Script by Tutos Criss")
